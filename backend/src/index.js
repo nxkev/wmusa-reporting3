@@ -401,10 +401,11 @@ app.get('/store-metrics', async (req, res) => {
           CAST(COALESCE("instock_percentage_this_year", '0') AS NUMERIC) as instock_percentage_this_year,
           CAST(COALESCE("repl_instock_percentage_this_year", '0') AS NUMERIC) as repl_instock_percentage_this_year,
           CAST(COALESCE("valid_store_count_this_year", '0') AS NUMERIC) as valid_store_count_this_year,
+          CAST(COALESCE("case_packs", '0') AS INTEGER) as case_packs,
           CASE 
-            WHEN all_links_item_description LIKE 'MS%' THEN 6
-            WHEN all_links_item_description LIKE 'BHG%' THEN 5
-            ELSE NULL
+            WHEN COALESCE("all_links_item_description", '') LIKE 'MS%' THEN 6
+            WHEN COALESCE("all_links_item_description", '') LIKE 'BHG%' THEN 5
+            ELSE 0
           END as units_per_case_pack
         FROM store_metrics
       )
@@ -458,9 +459,9 @@ app.get('/store-metrics', async (req, res) => {
           ELSE 0
         END as wos_with_instore_pipeline,
         units_per_case_pack,
-        ROUND(COALESCE(store_in_warehouse_quantity_this_year + store_in_transit_quantity_this_year + store_on_hand_quantity_this_year, 0)) as case_packs,
+        case_packs,
         CASE 
-          WHEN ROUND(COALESCE(store_in_warehouse_quantity_this_year + store_in_transit_quantity_this_year + store_on_hand_quantity_this_year, 0)) > 0 AND
+          WHEN case_packs > 0 AND
                CASE 
                  WHEN pos_quantity_this_year / 4.0 > 0 THEN 
                    ROUND((store_on_hand_quantity_this_year + store_in_warehouse_quantity_this_year + store_in_transit_quantity_this_year) 
@@ -468,7 +469,7 @@ app.get('/store-metrics', async (req, res) => {
                  ELSE 0
                END > 0
           THEN 
-            ROUND(COALESCE(store_in_warehouse_quantity_this_year + store_in_transit_quantity_this_year + store_on_hand_quantity_this_year, 0)) *
+            case_packs *
             CASE 
               WHEN pos_quantity_this_year / 4.0 > 0 THEN 
                 ROUND((store_on_hand_quantity_this_year + store_in_warehouse_quantity_this_year + store_in_transit_quantity_this_year) 
