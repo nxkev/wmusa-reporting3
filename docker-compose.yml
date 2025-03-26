@@ -1,40 +1,31 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  backend:
-    build: ./backend
+  frontend:
+    image: ghcr.io/nxkev/wmusa-reporting-frontend:latest
+    restart: always
     ports:
-      - "3001:3001"
-    volumes:
-      - ./data:/app/data
-      - ./input-files:/app/input-files
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - MAX_FILE_SIZE=100000000
+      - NEXT_PUBLIC_API_URL=http://backend:3001
+    depends_on:
+      - backend
+
+  backend:
+    image: ghcr.io/nxkev/wmusa-reporting-backend:latest
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
       - PORT=3001
-    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
     deploy:
       resources:
         limits:
           memory: 800M
         reservations:
-          memory: 600M
-
-  frontend:
-    build: 
-      context: ./frontend
-      target: runner
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
-    depends_on:
-      - backend
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-        reservations:
-          memory: 150M 
+          memory: 600M 

@@ -73,4 +73,30 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
-next-env.d.ts 
+next-env.d.ts
+
+# Deployment files
+.env.deploy
+deploy.tar.gz
+deploy_temp/
+
+# Node.js
+node_modules/
+.next/
+dist/
+build/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo 
