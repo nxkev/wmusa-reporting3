@@ -31,6 +31,21 @@ app.use(cors());
 app.use(express.json());
 app.use(limiter);
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  const healthcheck = {
+    uptime: process.uptime(),
+    message: 'OK',
+    timestamp: Date.now()
+  };
+  try {
+    res.send(healthcheck);
+  } catch (error) {
+    healthcheck.message = error;
+    res.status(503).send();
+  }
+});
+
 // Initialize SQLite database
 let db = null;
 let dbInitialized = false;

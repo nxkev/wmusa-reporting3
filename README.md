@@ -1,123 +1,121 @@
-# CSV Processor
+# WMUSA Reporting Application
 
-A lightweight full-stack web application for processing large CSV files efficiently. Built with React, Node.js, and SQLite, optimized for DigitalOcean's $6/month Droplet.
+A web application for uploading and analyzing store metrics data.
 
 ## Features
 
-- Upload and process large CSV files (up to 100MB)
-- Stream data directly into SQLite for efficient storage
-- Query and filter data with pagination
-- Clean and transform data using SQL queries
-- Export filtered data as CSV
-- Modern, responsive UI with Tailwind CSS
-
-## Tech Stack
-
-- Frontend: React + Vite + Tailwind CSS
-- Backend: Node.js + Express + SQLite
-- Deployment: Docker Compose
-- Storage: SQLite (ephemeral)
+- CSV file upload for store metrics data
+- Dynamic data processing and analysis
+- Interactive data visualization
+- Database status monitoring
+- Cleanup functionality
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- Node.js 20+ (for local development)
-- 1GB RAM minimum (optimized for DigitalOcean $6 Droplet)
+- Docker
+- Docker Compose
+- Access to a private Docker registry
 
-## Quick Start
+## Deployment
 
-1. Clone the repository:
+### 1. Environment Setup
+
+1. Copy the example environment file:
    ```bash
-   git clone <repository-url>
-   cd csv-processor
+   cp .env.example .env
    ```
 
-2. Start the application with Docker Compose:
-   ```bash
-   docker-compose up -d
-   ```
+2. Edit the `.env` file with your configuration:
+   - Set `DOCKER_REGISTRY` to your private registry URL
+   - Set `TAG` for version control (default: latest)
+   - Adjust other variables as needed
 
-3. Access the application:
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:5000
+### 2. Building Images
 
-## Development
-
-### Frontend
-
+Build the Docker images:
 ```bash
-cd frontend
-npm install
-npm run dev
+docker compose -f docker-compose.prod.yml build
 ```
 
-### Backend
+### 3. Pushing to Private Registry
 
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-## API Endpoints
-
-### POST /upload
-Upload a CSV file (max 100MB)
-
-### POST /query
-Execute queries with pagination
-```json
-{
-  "query": "SELECT * FROM data",
-  "page": 1,
-  "limit": 100
-}
-```
-
-### POST /update
-Update rows based on filter conditions
-```json
-{
-  "filter": { "column": "value" },
-  "updates": { "column": "new_value" }
-}
-```
-
-### GET /download
-Download filtered data as CSV
-
-### POST /cleanup
-Execute cleanup queries
-```json
-{
-  "query": "UPDATE data SET column = TRIM(column)"
-}
-```
-
-### GET /schema
-Get current data schema
-
-### GET /count
-Get row counts (total & filtered)
-
-## Performance Considerations
-
-- Uses streaming for file uploads and downloads
-- Implements pagination for large datasets
-- SQLite for efficient data storage and querying
-- Memory-optimized for 1GB RAM environments
-- Rate limiting to prevent overload
-
-## Deployment on DigitalOcean
-
-1. Create a new Droplet (Ubuntu 22.04, 1GB RAM, 1 vCPU)
-2. Install Docker and Docker Compose
-3. Clone the repository
-4. Start the application:
+1. Log in to your private registry:
    ```bash
-   docker-compose up -d
+   docker login your-registry.com
    ```
 
-## License
+2. Push the images:
+   ```bash
+   docker compose -f docker-compose.prod.yml push
+   ```
 
-MIT 
+### 4. Deployment
+
+1. On your production server, pull the images:
+   ```bash
+   docker compose -f docker-compose.prod.yml pull
+   ```
+
+2. Start the services:
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+### 5. Verification
+
+1. Check service health:
+   ```bash
+   docker compose -f docker-compose.prod.yml ps
+   ```
+
+2. View logs:
+   ```bash
+   docker compose -f docker-compose.prod.yml logs
+   ```
+
+## Data Persistence
+
+The application uses Docker volumes for data persistence:
+- `backend_data`: Stores the SQLite database
+- `backend_uploads`: Temporary storage for uploaded files
+
+## Health Monitoring
+
+Both services include health check endpoints:
+- Backend: `http://localhost:3001/health`
+- Frontend: `http://localhost:3000`
+
+## Maintenance
+
+### Backup
+
+To backup the database:
+```bash
+docker compose -f docker-compose.prod.yml exec backend tar czf /app/data/backup.tar.gz /app/data/*.db
+docker compose -f docker-compose.prod.yml cp backend:/app/data/backup.tar.gz ./backup.tar.gz
+```
+
+### Restore
+
+To restore from backup:
+```bash
+docker compose -f docker-compose.prod.yml cp ./backup.tar.gz backend:/app/data/
+docker compose -f docker-compose.prod.yml exec backend tar xzf /app/data/backup.tar.gz -C /
+```
+
+## Troubleshooting
+
+1. If services fail to start, check logs:
+   ```bash
+   docker compose -f docker-compose.prod.yml logs [service_name]
+   ```
+
+2. To restart services:
+   ```bash
+   docker compose -f docker-compose.prod.yml restart [service_name]
+   ```
+
+3. To check service health:
+   ```bash
+   curl http://localhost:3001/health
+   ``` 
