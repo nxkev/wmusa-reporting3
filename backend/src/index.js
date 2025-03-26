@@ -365,11 +365,7 @@ app.get('/store-metrics', async (req, res) => {
 
     console.log(`Found ${rowCount.count} rows in store_metrics table`);
 
-    // Get table columns
-    const tableInfo = await db.all("PRAGMA table_info(store_metrics)");
-    const existingColumns = tableInfo.map(col => col.name);
-    console.log('Existing columns:', existingColumns);
-
+    // Execute the complex query that filters for Yesterday data
     const query = `
       WITH yesterday_data AS (
         SELECT *
@@ -382,7 +378,6 @@ app.get('/store-metrics', async (req, res) => {
         WHERE wm_time_window_week = 'L4W'
       )
       SELECT 
-        -- No Transformation Columns
         y.wm_time_window_week,
         y.all_links_item_description,
         y.all_links_item_number,
@@ -401,10 +396,8 @@ app.get('/store-metrics', async (req, res) => {
         y.vendor_number,
         y.store_number,
         y.city_name,
-        y.all_links_item_number || '/' || y.store_number || '/' || y.city_name as "all_links_item_number/store_number/city_name",
+        y.all_links_item_number || '/' || y.store_number || '/' || y.city_name as item_store_city,
         y.catalog_item_id,
-
-        -- L4W Aggregated Data
         CAST(COALESCE(l4w.units_per_str_with_sales_per_week_or_per_day_ty, '0') AS NUMERIC) as l4w_units_per_str_with_sales_per_week_or_per_day_ty,
         CAST(COALESCE(y.units_per_str_with_sales_per_week_or_per_day_ty, '0') AS NUMERIC) as units_per_str_with_sales_per_week_or_per_day_ty,
         CAST(COALESCE(l4w.dollar_per_str_with_sales_per_week_or_per_day_ty, '0') AS NUMERIC) as l4w_dollar_per_str_with_sales_per_week_or_per_day_ty,
@@ -416,15 +409,12 @@ app.get('/store-metrics', async (req, res) => {
         CAST(COALESCE(y.store_on_order_quantity_this_year, '0') AS NUMERIC) as store_on_order_quantity_this_year,
         CAST(COALESCE(l4w.pos_quantity_this_year, '0') AS NUMERIC) as l4w_pos_quantity_this_year,
         CAST(COALESCE(y.pos_quantity_this_year, '0') AS NUMERIC) as pos_quantity_this_year,
-
-        -- Calculated Fields
         CAST(COALESCE(y.pos_quantity_this_year, '0') AS NUMERIC) / 4.0 as average_weekly_sales,
         CAST(COALESCE(y.store_in_transit_quantity_this_year, '0') AS NUMERIC) + 
         CAST(COALESCE(y.store_in_warehouse_quantity_this_year, '0') AS NUMERIC) as pipeline,
         CAST(COALESCE(y.store_on_hand_quantity_this_year, '0') AS NUMERIC) as in_store,
         CAST(COALESCE(y.store_in_warehouse_quantity_this_year, '0') AS NUMERIC) + 
         CAST(COALESCE(y.store_in_transit_quantity_this_year, '0') AS NUMERIC) as pipeline_iw_it,
-        
         CASE 
           WHEN CAST(COALESCE(y.pos_quantity_this_year, '0') AS NUMERIC) / 4.0 > 0 THEN 
             (CAST(COALESCE(y.store_on_hand_quantity_this_year, '0') AS NUMERIC) + 
@@ -433,22 +423,18 @@ app.get('/store-metrics', async (req, res) => {
             (CAST(COALESCE(y.pos_quantity_this_year, '0') AS NUMERIC) / 4.0)
           ELSE NULL
         END as wos_with_instore_pipeline,
-
-        -- Placeholder Fields
         CASE 
           WHEN y.all_links_item_description LIKE 'MS%' THEN 6
           WHEN y.all_links_item_description LIKE 'BHG%' THEN 5
           ELSE NULL
         END as units_per_case_pack,
-        
         NULL as case_packs,
         NULL as total_units
       FROM yesterday_data y
       LEFT JOIN l4w_data l4w
         ON y.all_links_item_number = l4w.all_links_item_number
         AND y.store_number = l4w.store_number
-      ORDER BY y.store_number, y.all_links_item_number
-      LIMIT 1000;
+      ORDER BY y.store_number, y.all_links_item_number;
     `;
 
     console.log('Executing store metrics query...');
@@ -458,7 +444,7 @@ app.get('/store-metrics', async (req, res) => {
     if (results.length === 0) {
       return res.status(404).json({ 
         error: 'No data found',
-        message: 'No data found. Please upload a CSV file with data.'
+        message: 'No data found for Yesterday. Please ensure your data includes records with wm_time_window_week = "Yesterday".'
       });
     }
     
