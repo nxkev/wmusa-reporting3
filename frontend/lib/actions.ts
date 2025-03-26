@@ -231,7 +231,8 @@ export async function processCSV(
 
 export async function fetchStoreMetrics(): Promise<StoreMetricsData[]> {
   try {
-    const response = await fetch('/api/store-metrics');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const response = await fetch(`${apiUrl}/store-metrics`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

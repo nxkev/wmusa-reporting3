@@ -1,35 +1,26 @@
 #!/bin/bash
 
-# Exit on any error
+# Exit on error
 set -e
 
 # Load environment variables
-if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+if [ -f .env.deploy ]; then
+  export $(cat .env.deploy | grep -v '^#' | xargs)
 else
-    echo "Error: .env file not found"
-    exit 1
+  echo "Error: .env.deploy file not found"
+  exit 1
 fi
 
-# Check if DOCKER_REGISTRY is set
-if [ -z "$DOCKER_REGISTRY" ]; then
-    echo "Error: DOCKER_REGISTRY not set in .env file"
-    exit 1
-fi
+# Login to GitHub Container Registry
+echo ${GITHUB_TOKEN} | docker login ghcr.io -u ${GITHUB_USERNAME} --password-stdin
 
-# Build images
+# Build Docker images
 echo "Building Docker images..."
-docker compose -f docker-compose.prod.yml build
-
-# Log in to Docker registry
-echo "Logging in to Docker registry..."
-docker login $DOCKER_REGISTRY
-
-# Push images
-echo "Pushing images to registry..."
-docker compose -f docker-compose.prod.yml push
+docker buildx create --use
+docker buildx build --platform linux/amd64 -t ghcr.io/${GITHUB_USERNAME}/wmusa-reporting-frontend:latest -f frontend/Dockerfile ./frontend --push
+docker buildx build --platform linux/amd64 -t ghcr.io/${GITHUB_USERNAME}/wmusa-reporting-backend:latest -f backend/Dockerfile ./backend --push
 
 echo "Deployment preparation complete!"
-echo "Images are now available at:"
-echo "- $DOCKER_REGISTRY/wmusa-reporting-frontend:${TAG:-latest}"
-echo "- $DOCKER_REGISTRY/wmusa-reporting-backend:${TAG:-latest}" 
+echo "Images are available at:"
+echo "- ghcr.io/${GITHUB_USERNAME}/wmusa-reporting-frontend:latest"
+echo "- ghcr.io/${GITHUB_USERNAME}/wmusa-reporting-backend:latest" 

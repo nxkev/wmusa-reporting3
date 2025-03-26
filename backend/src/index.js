@@ -33,17 +33,7 @@ app.use(limiter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  const healthcheck = {
-    uptime: process.uptime(),
-    message: 'OK',
-    timestamp: Date.now()
-  };
-  try {
-    res.send(healthcheck);
-  } catch (error) {
-    healthcheck.message = error;
-    res.status(503).send();
-  }
+  res.json({ status: 'ok' });
 });
 
 // Initialize SQLite database
@@ -381,120 +371,83 @@ app.get('/store-metrics', async (req, res) => {
     console.log('Existing columns:', existingColumns);
 
     const query = `
-      WITH base_data AS (
-        SELECT 
-          COALESCE("wm_time_window_week", '') as wm_time_window_week,
-          COALESCE("all_links_item_description", '') as all_links_item_description,
-          COALESCE("all_links_item_number", '') as all_links_item_number,
-          CAST(COALESCE("base_unit_retail_amount", '0') AS NUMERIC) as base_unit_retail_amount,
-          COALESCE("brand_id", '') as brand_id,
-          COALESCE("brand_name", '') as brand_name,
-          COALESCE("buyer_name", '') as buyer_name,
-          COALESCE("consumer_id", '') as consumer_id,
-          COALESCE("country_of_origin", '') as country_of_origin,
-          COALESCE("omni_category_group_description", '') as omni_category_group_description,
-          COALESCE("omni_department_number", '') as omni_department_number,
-          COALESCE("season_description", '') as season_description,
-          COALESCE("season_year", '') as season_year,
-          COALESCE("walmart_upc_number", '') as walmart_upc_number,
-          COALESCE("vendor_name", '') as vendor_name,
-          COALESCE("vendor_number", '') as vendor_number,
-          COALESCE("store_number", '') as store_number,
-          COALESCE("city_name", '') as city_name,
-          COALESCE("catalog_item_id", '') as catalog_item_id,
-          COALESCE("all_links_item_number", '') || '/' || COALESCE("store_number", '') || '/' || COALESCE("city_name", '') as item_store_city,
-          CAST(COALESCE("dollar_per_str_with_sales_per_week_or_per_day_ty", '0') AS NUMERIC) as dollar_per_str_with_sales_per_week_or_per_day_ty,
-          CAST(COALESCE("store_in_transit_quantity_this_year", '0') AS NUMERIC) as store_in_transit_quantity_this_year,
-          CAST(COALESCE("store_in_warehouse_quantity_this_year", '0') AS NUMERIC) as store_in_warehouse_quantity_this_year,
-          CAST(COALESCE("store_on_hand_quantity_this_year", '0') AS NUMERIC) as store_on_hand_quantity_this_year,
-          CAST(COALESCE("store_on_order_quantity_this_year", '0') AS NUMERIC) as store_on_order_quantity_this_year,
-          CAST(COALESCE("pos_quantity_this_year", '0') AS NUMERIC) as pos_quantity_this_year,
-          CAST(COALESCE("units_per_str_with_sales_per_week_or_per_day_ty", '0') AS NUMERIC) as units_per_str_with_sales_per_week_or_per_day_ty,
-          CAST(COALESCE("gross_receipt_quantity_this_year", '0') AS NUMERIC) as gross_receipt_quantity_this_year,
-          CAST(COALESCE("net_receipt_quantity_this_year", '0') AS NUMERIC) as net_receipt_quantity_this_year,
-          CAST(COALESCE("total_store_customer_returns_quantity_defective_this_year", '0') AS NUMERIC) as total_store_customer_returns_quantity_defective_this_year,
-          CAST(COALESCE("instock_percentage_this_year", '0') AS NUMERIC) as instock_percentage_this_year,
-          CAST(COALESCE("repl_instock_percentage_this_year", '0') AS NUMERIC) as repl_instock_percentage_this_year,
-          CAST(COALESCE("valid_store_count_this_year", '0') AS NUMERIC) as valid_store_count_this_year,
-          CAST(COALESCE("case_packs", '0') AS INTEGER) as case_packs,
-          CASE 
-            WHEN COALESCE("all_links_item_description", '') LIKE 'MS%' THEN 6
-            WHEN COALESCE("all_links_item_description", '') LIKE 'BHG%' THEN 5
-            ELSE 0
-          END as units_per_case_pack
+      WITH yesterday_data AS (
+        SELECT *
         FROM store_metrics
+        WHERE wm_time_window_week = 'Yesterday'
+      ),
+      l4w_data AS (
+        SELECT *
+        FROM store_metrics
+        WHERE wm_time_window_week = 'L4W'
       )
       SELECT 
-        wm_time_window_week,
-        all_links_item_description,
-        all_links_item_number,
-        base_unit_retail_amount,
-        brand_id,
-        brand_name,
-        buyer_name,
-        consumer_id,
-        country_of_origin,
-        omni_category_group_description,
-        omni_department_number,
-        season_description,
-        season_year,
-        walmart_upc_number,
-        vendor_name,
-        vendor_number,
-        store_number,
-        city_name,
-        catalog_item_id,
-        item_store_city as "all_links_item_number/store_number/city_name",
-        store_in_transit_quantity_this_year,
-        store_in_warehouse_quantity_this_year,
-        store_on_hand_quantity_this_year,
-        store_on_order_quantity_this_year,
-        pos_quantity_this_year,
-        ROUND(pos_quantity_this_year / 4.0, 2) as l4w_pos_quantity_this_year,
-        ROUND(pos_quantity_this_year / 52.0, 2) as average_weekly_sales,
-        units_per_str_with_sales_per_week_or_per_day_ty,
-        ROUND(units_per_str_with_sales_per_week_or_per_day_ty / 4.0, 2) as l4w_units_per_str_with_sales_per_week_or_per_day_ty,
-        dollar_per_str_with_sales_per_week_or_per_day_ty,
-        ROUND(dollar_per_str_with_sales_per_week_or_per_day_ty / 4.0, 2) as l4w_dollar_per_str_with_sales_per_week_or_per_day_ty,
-        gross_receipt_quantity_this_year,
-        net_receipt_quantity_this_year,
-        total_store_customer_returns_quantity_defective_this_year,
-        instock_percentage_this_year,
-        repl_instock_percentage_this_year,
-        store_in_transit_quantity_this_year,
-        store_in_warehouse_quantity_this_year,
-        store_on_hand_quantity_this_year,
-        store_on_order_quantity_this_year,
-        valid_store_count_this_year,
-        store_in_warehouse_quantity_this_year + store_in_transit_quantity_this_year as pipeline_iw_it,
+        -- No Transformation Columns
+        y.wm_time_window_week,
+        y.all_links_item_description,
+        y.all_links_item_number,
+        CAST(COALESCE(y.base_unit_retail_amount, '0') AS NUMERIC) as base_unit_retail_amount,
+        y.brand_id,
+        y.brand_name,
+        y.buyer_name,
+        y.consumer_id,
+        y.country_of_origin,
+        y.omni_category_group_description,
+        y.omni_department_number,
+        y.season_description,
+        y.season_year,
+        y.walmart_upc_number,
+        y.vendor_name,
+        y.vendor_number,
+        y.store_number,
+        y.city_name,
+        y.all_links_item_number || '/' || y.store_number || '/' || y.city_name as "all_links_item_number/store_number/city_name",
+        y.catalog_item_id,
+
+        -- L4W Aggregated Data
+        CAST(COALESCE(l4w.units_per_str_with_sales_per_week_or_per_day_ty, '0') AS NUMERIC) as l4w_units_per_str_with_sales_per_week_or_per_day_ty,
+        CAST(COALESCE(y.units_per_str_with_sales_per_week_or_per_day_ty, '0') AS NUMERIC) as units_per_str_with_sales_per_week_or_per_day_ty,
+        CAST(COALESCE(l4w.dollar_per_str_with_sales_per_week_or_per_day_ty, '0') AS NUMERIC) as l4w_dollar_per_str_with_sales_per_week_or_per_day_ty,
+        CAST(COALESCE(y.dollar_per_str_with_sales_per_week_or_per_day_ty, '0') AS NUMERIC) as dollar_per_str_with_sales_per_week_or_per_day_ty,
+        CAST(COALESCE(y.instock_percentage_this_year, '0') AS NUMERIC) as instock_percentage_this_year,
+        CAST(COALESCE(y.store_in_transit_quantity_this_year, '0') AS NUMERIC) as store_in_transit_quantity_this_year,
+        CAST(COALESCE(y.store_in_warehouse_quantity_this_year, '0') AS NUMERIC) as store_in_warehouse_quantity_this_year,
+        CAST(COALESCE(y.store_on_hand_quantity_this_year, '0') AS NUMERIC) as store_on_hand_quantity_this_year,
+        CAST(COALESCE(y.store_on_order_quantity_this_year, '0') AS NUMERIC) as store_on_order_quantity_this_year,
+        CAST(COALESCE(l4w.pos_quantity_this_year, '0') AS NUMERIC) as l4w_pos_quantity_this_year,
+        CAST(COALESCE(y.pos_quantity_this_year, '0') AS NUMERIC) as pos_quantity_this_year,
+
+        -- Calculated Fields
+        CAST(COALESCE(y.pos_quantity_this_year, '0') AS NUMERIC) / 4.0 as average_weekly_sales,
+        CAST(COALESCE(y.store_in_transit_quantity_this_year, '0') AS NUMERIC) + 
+        CAST(COALESCE(y.store_in_warehouse_quantity_this_year, '0') AS NUMERIC) as pipeline,
+        CAST(COALESCE(y.store_on_hand_quantity_this_year, '0') AS NUMERIC) as in_store,
+        CAST(COALESCE(y.store_in_warehouse_quantity_this_year, '0') AS NUMERIC) + 
+        CAST(COALESCE(y.store_in_transit_quantity_this_year, '0') AS NUMERIC) as pipeline_iw_it,
+        
         CASE 
-          WHEN pos_quantity_this_year / 4.0 > 0 THEN 
-            ROUND((store_on_hand_quantity_this_year + store_in_warehouse_quantity_this_year + store_in_transit_quantity_this_year) 
-            / (pos_quantity_this_year / 4.0), 2)
-          ELSE 0
+          WHEN CAST(COALESCE(y.pos_quantity_this_year, '0') AS NUMERIC) / 4.0 > 0 THEN 
+            (CAST(COALESCE(y.store_on_hand_quantity_this_year, '0') AS NUMERIC) + 
+             CAST(COALESCE(y.store_in_warehouse_quantity_this_year, '0') AS NUMERIC) + 
+             CAST(COALESCE(y.store_in_transit_quantity_this_year, '0') AS NUMERIC)) /
+            (CAST(COALESCE(y.pos_quantity_this_year, '0') AS NUMERIC) / 4.0)
+          ELSE NULL
         END as wos_with_instore_pipeline,
-        units_per_case_pack,
-        case_packs,
+
+        -- Placeholder Fields
         CASE 
-          WHEN case_packs > 0 AND
-               CASE 
-                 WHEN pos_quantity_this_year / 4.0 > 0 THEN 
-                   ROUND((store_on_hand_quantity_this_year + store_in_warehouse_quantity_this_year + store_in_transit_quantity_this_year) 
-                   / (pos_quantity_this_year / 4.0), 2)
-                 ELSE 0
-               END > 0
-          THEN 
-            case_packs *
-            CASE 
-              WHEN pos_quantity_this_year / 4.0 > 0 THEN 
-                ROUND((store_on_hand_quantity_this_year + store_in_warehouse_quantity_this_year + store_in_transit_quantity_this_year) 
-                / (pos_quantity_this_year / 4.0), 2)
-              ELSE 0
-            END
-          ELSE 0
-        END as total_units
-      FROM base_data
-      ORDER BY store_number, all_links_item_number
+          WHEN y.all_links_item_description LIKE 'MS%' THEN 6
+          WHEN y.all_links_item_description LIKE 'BHG%' THEN 5
+          ELSE NULL
+        END as units_per_case_pack,
+        
+        NULL as case_packs,
+        NULL as total_units
+      FROM yesterday_data y
+      LEFT JOIN l4w_data l4w
+        ON y.all_links_item_number = l4w.all_links_item_number
+        AND y.store_number = l4w.store_number
+      ORDER BY y.store_number, y.all_links_item_number
       LIMIT 1000;
     `;
 
@@ -570,8 +523,19 @@ app.post('/db-cleanup', async (req, res) => {
       });
     }
 
-    // Simply drop the store_metrics table
+    // Drop the store_metrics table
     await db.exec('DROP TABLE IF EXISTS store_metrics');
+    
+    // Run VACUUM to reclaim space and defragment the database
+    await db.exec('VACUUM');
+
+    // Close and reopen the database connection to ensure changes take effect
+    await db.close();
+    db = await open({
+      filename: '/app/data.db',
+      driver: sqlite3.Database
+    });
+    dbInitialized = true;
 
     res.json({
       message: 'Database cleaned successfully',

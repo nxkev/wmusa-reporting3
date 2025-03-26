@@ -10,9 +10,6 @@ import {
   useReactTable,
   type SortingState,
   type ColumnDef,
-  type HeaderGroup,
-  type Row,
-  type Cell,
 } from '@tanstack/react-table'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -25,6 +22,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface StoreMetric {
   wm_time_window_week: string
@@ -47,7 +51,6 @@ interface StoreMetric {
   city_name: string
   catalog_item_id: string
   item_store_city: string
-  dollar_per_str_with_sales_per_week_or_per_day_ty: number
   store_in_transit_quantity_this_year: number
   store_in_warehouse_quantity_this_year: number
   store_on_hand_quantity_this_year: number
@@ -57,6 +60,7 @@ interface StoreMetric {
   average_weekly_sales: number
   units_per_str_with_sales_per_week_or_per_day_ty: number
   l4w_units_per_str_with_sales_per_week_or_per_day_ty: number
+  dollar_per_str_with_sales_per_week_or_per_day_ty: number
   l4w_dollar_per_str_with_sales_per_week_or_per_day_ty: number
   gross_receipt_quantity_this_year: number
   net_receipt_quantity_this_year: number
@@ -64,13 +68,20 @@ interface StoreMetric {
   instock_percentage_this_year: number
   repl_instock_percentage_this_year: number
   valid_store_count_this_year: number
-  pos_quantity_this_year_1: number
-  pos_quantity_this_year_2: number
   pipeline_iw_it: number
   wos_with_instore_pipeline: number | null
   units_per_case_pack: number | null
   case_packs: number | null
   total_units: number
+}
+
+const formatNumber = (value: number | null) => {
+  if (value === null) return '-'
+  return value.toLocaleString('en-US', { maximumFractionDigits: 2 })
+}
+
+const formatPercentage = (value: number) => {
+  return `${value.toFixed(2)}%`
 }
 
 export function StoreMetricsTable() {
@@ -79,210 +90,219 @@ export function StoreMetricsTable() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [globalFilter, setGlobalFilter] = useState('')
+  const [pageSize, setPageSize] = useState(50)
 
   const columns: ColumnDef<StoreMetric>[] = [
     {
       accessorKey: "wm_time_window_week",
-      header: "wm_time_window_week",
+      header: "Week",
     },
     {
       accessorKey: "all_links_item_description",
-      header: "all_links_item_description",
+      header: "Item Description",
     },
     {
       accessorKey: "all_links_item_number",
-      header: "all_links_item_number",
+      header: "Item Number",
     },
     {
       accessorKey: "base_unit_retail_amount",
-      header: "base_unit_retail_amount",
+      header: "Base Unit Retail",
     },
     {
       accessorKey: "brand_id",
-      header: "brand_id",
+      header: "Brand ID",
     },
     {
       accessorKey: "brand_name",
-      header: "brand_name",
+      header: "Brand Name",
     },
     {
       accessorKey: "buyer_name",
-      header: "buyer_name",
+      header: "Buyer Name",
     },
     {
       accessorKey: "consumer_id",
-      header: "consumer_id",
+      header: "Consumer ID",
     },
     {
       accessorKey: "country_of_origin",
-      header: "country_of_origin",
+      header: "Country of Origin",
     },
     {
       accessorKey: "omni_category_group_description",
-      header: "omni_category_group_description",
+      header: "Category Group",
     },
     {
       accessorKey: "omni_department_number",
-      header: "omni_department_number",
+      header: "Department Number",
     },
     {
       accessorKey: "season_description",
-      header: "season_description",
+      header: "Season",
     },
     {
       accessorKey: "season_year",
-      header: "season_year",
+      header: "Season Year",
     },
     {
       accessorKey: "walmart_upc_number",
-      header: "walmart_upc_number",
+      header: "UPC Number",
     },
     {
       accessorKey: "vendor_name",
-      header: "vendor_name",
+      header: "Vendor Name",
     },
     {
       accessorKey: "vendor_number",
-      header: "vendor_number",
+      header: "Vendor Number",
     },
     {
       accessorKey: "store_number",
-      header: "store_number",
+      header: "Store Number",
     },
     {
       accessorKey: "city_name",
-      header: "city_name",
+      header: "City",
     },
     {
       accessorKey: "catalog_item_id",
-      header: "catalog_item_id",
+      header: "Catalog Item ID",
     },
     {
       accessorKey: "item_store_city",
-      header: "item_store_city",
-    },
-    {
-      accessorKey: "dollar_per_str_with_sales_per_week_or_per_day_ty",
-      header: "dollar_per_str_with_sales_per_week_or_per_day_ty",
-      cell: (info) => (info.getValue() as number)?.toFixed(2),
+      header: "Item/Store/City",
     },
     {
       accessorKey: "store_in_transit_quantity_this_year",
-      header: "store_in_transit_quantity_this_year",
+      header: "In Transit Qty",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "store_in_warehouse_quantity_this_year",
-      header: "store_in_warehouse_quantity_this_year",
+      header: "In Warehouse Qty",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "store_on_hand_quantity_this_year",
-      header: "store_on_hand_quantity_this_year",
+      header: "On Hand Qty",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "store_on_order_quantity_this_year",
-      header: "store_on_order_quantity_this_year",
+      header: "On Order Qty",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "pos_quantity_this_year",
-      header: "pos_quantity_this_year",
+      header: "POS Qty",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "l4w_pos_quantity_this_year",
-      header: "l4w_pos_quantity_this_year",
-      cell: (info) => (info.getValue() as number)?.toFixed(2),
+      header: "L4W POS Qty",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "average_weekly_sales",
-      header: "average_weekly_sales",
-      cell: (info) => (info.getValue() as number)?.toFixed(2),
+      header: "Avg Weekly Sales",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "units_per_str_with_sales_per_week_or_per_day_ty",
-      header: "units_per_str_with_sales_per_week_or_per_day_ty",
-      cell: (info) => (info.getValue() as number)?.toFixed(2),
+      header: "Units/Store/Week",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "l4w_units_per_str_with_sales_per_week_or_per_day_ty",
-      header: "l4w_units_per_str_with_sales_per_week_or_per_day_ty",
-      cell: (info) => (info.getValue() as number)?.toFixed(2),
+      header: "L4W Units/Store/Week",
+      cell: (info) => formatNumber(info.getValue() as number),
+    },
+    {
+      accessorKey: "dollar_per_str_with_sales_per_week_or_per_day_ty",
+      header: "$/Store/Week",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "l4w_dollar_per_str_with_sales_per_week_or_per_day_ty",
-      header: "l4w_dollar_per_str_with_sales_per_week_or_per_day_ty",
-      cell: (info) => (info.getValue() as number)?.toFixed(2),
+      header: "L4W $/Store/Week",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "gross_receipt_quantity_this_year",
-      header: "gross_receipt_quantity_this_year",
+      header: "Gross Receipt Qty",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "net_receipt_quantity_this_year",
-      header: "net_receipt_quantity_this_year",
+      header: "Net Receipt Qty",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "total_store_customer_returns_quantity_defective_this_year",
-      header: "total_store_customer_returns_quantity_defective_this_year",
+      header: "Returns Qty",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "instock_percentage_this_year",
-      header: "instock_percentage_this_year",
-      cell: (info) => `${info.getValue()}%`,
+      header: "In-Stock %",
+      cell: (info) => formatPercentage(info.getValue() as number),
     },
     {
       accessorKey: "repl_instock_percentage_this_year",
-      header: "repl_instock_percentage_this_year",
-      cell: (info) => `${info.getValue()}%`,
+      header: "Repl In-Stock %",
+      cell: (info) => formatPercentage(info.getValue() as number),
     },
     {
       accessorKey: "valid_store_count_this_year",
-      header: "valid_store_count_this_year",
-    },
-    {
-      accessorKey: "pos_quantity_this_year_1",
-      header: "pos_quantity_this_year_1",
-    },
-    {
-      accessorKey: "pos_quantity_this_year_2",
-      header: "pos_quantity_this_year_2",
+      header: "Valid Store Count",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "pipeline_iw_it",
-      header: "pipeline_iw_it",
+      header: "Pipeline IW/IT",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "wos_with_instore_pipeline",
-      header: "wos_with_instore_pipeline",
-      cell: (info) => (info.getValue() as number)?.toFixed(2) || 'N/A',
+      header: "WOS w/Pipeline",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "units_per_case_pack",
-      header: "units_per_case_pack",
-      cell: (info) => info.getValue() || 'N/A',
+      header: "Units/Case",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "case_packs",
-      header: "case_packs",
-      cell: (info) => (info.getValue() as number)?.toFixed(2) || 'N/A',
+      header: "Case Packs",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
     {
       accessorKey: "total_units",
-      header: "total_units",
+      header: "Total Units",
+      cell: (info) => formatNumber(info.getValue() as number),
     },
   ]
 
   const table = useReactTable({
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
       globalFilter,
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: pageSize,
+      },
+    },
   })
 
   useEffect(() => {
@@ -295,7 +315,6 @@ export function StoreMetricsTable() {
         }
         const jsonData = await response.json()
         setData(jsonData)
-        setError(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred')
       } finally {
@@ -307,19 +326,11 @@ export function StoreMetricsTable() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    )
+    return <div className="text-center p-4">Loading...</div>
   }
 
   if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
-        {error}
-      </div>
-    )
+    return <div className="text-center text-red-500 p-4">Error: {error}</div>
   }
 
   return (
@@ -331,74 +342,87 @@ export function StoreMetricsTable() {
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+        <div className="flex items-center gap-2">
+          <Select
+            value={pageSize.toString()}
+            onValueChange={(value) => {
+              setPageSize(Number(value))
+              table.setPageSize(Number(value))
+            }}
           >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select page size" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10 per page</SelectItem>
+              <SelectItem value="20">20 per page</SelectItem>
+              <SelectItem value="50">50 per page</SelectItem>
+              <SelectItem value="100">100 per page</SelectItem>
+              <SelectItem value="250">250 per page</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <span className="text-sm">
+              Page {table.getState().pagination.pageIndex + 1} of{' '}
+              {table.getPageCount()}
+            </span>
+            <Button
+              variant="outline"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map((headerGroup: HeaderGroup<StoreMetric>) => (
+            {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead 
-                    key={header.id}
-                    className="bg-gray-100"
-                    style={{ position: 'relative' }}
-                  >
-                    {header.isPlaceholder ? null : (
-                      <div
-                        {...{
-                          className: header.column.getCanSort()
-                            ? 'cursor-pointer select-none flex items-center gap-1'
-                            : '',
-                          onClick: header.column.getToggleSortingHandler(),
-                        }}
-                      >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                        {{
-                          asc: <ChevronUp className="h-4 w-4" />,
-                          desc: <ChevronDown className="h-4 w-4" />,
-                        }[header.column.getIsSorted() as string] ?? (
-                          header.column.getCanSort() ? (
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder ? null : (
+                        <div
+                          className="flex items-center gap-2 cursor-pointer"
+                          onClick={header.column.getToggleSortingHandler()}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          {{
+                            asc: <ChevronUp className="h-4 w-4" />,
+                            desc: <ChevronDown className="h-4 w-4" />,
+                          }[header.column.getIsSorted() as string] ?? (
                             <ChevronsUpDown className="h-4 w-4" />
-                          ) : null
-                        )}
-                      </div>
-                    )}
-                  </TableHead>
-                ))}
+                          )}
+                        </div>
+                      )}
+                    </TableHead>
+                  )
+                })}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row: Row<StoreMetric>) => (
+              table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-gray-50"
                 >
-                  {row.getVisibleCells().map((cell: Cell<StoreMetric, unknown>) => (
+                  {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -422,24 +446,11 @@ export function StoreMetricsTable() {
         </Table>
       </div>
 
-      <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="text-sm text-gray-700">
-          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
-          {Math.min(
-            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-            data.length
-          )}{' '}
-          of {data.length} entries
+      <div className="flex items-center justify-end space-x-2">
+        <div className="flex-1 text-sm text-muted-foreground">
+          {table.getFilteredRowModel().rows.length} rows total
         </div>
         <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.setPageIndex(0)}
-            disabled={!table.getCanPreviousPage()}
-          >
-            First
-          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -455,14 +466,6 @@ export function StoreMetricsTable() {
             disabled={!table.getCanNextPage()}
           >
             Next
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-            disabled={!table.getCanNextPage()}
-          >
-            Last
           </Button>
         </div>
       </div>

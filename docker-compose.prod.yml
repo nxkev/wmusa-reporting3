@@ -2,16 +2,16 @@ version: '3.8'
 
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: ${DOCKER_REGISTRY:-localhost}/wmusa-reporting-backend:${TAG:-latest}
+    image: ghcr.io/nxkev/wmusa-reporting-backend:latest
+    ports:
+      - "${PROD_BACKEND_PORT:-3001}:3001"
     environment:
-      - NODE_ENV=production
-      - PORT=3001
+      - NODE_ENV=${PROD_NODE_ENV:-production}
+      - DATABASE_URL=file:${PROD_DB_PATH:-/app/data/db.sqlite}
+      - UPLOAD_DIR=${PROD_UPLOAD_DIR:-/app/uploads}
     volumes:
-      - backend_data:/app/data
-      - backend_uploads:/app/uploads
+      - ${PROD_DEPLOY_PATH:-/opt/wmusa-reporting}/data:/app/data
+      - ${PROD_DEPLOY_PATH:-/opt/wmusa-reporting}/uploads:/app/uploads
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
@@ -21,13 +21,12 @@ services:
       start_period: 40s
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    image: ${DOCKER_REGISTRY:-localhost}/wmusa-reporting-frontend:${TAG:-latest}
+    image: ghcr.io/nxkev/wmusa-reporting-frontend:latest
+    ports:
+      - "${PROD_FRONTEND_PORT:-3000}:3000"
     environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://backend:3001
+      - NODE_ENV=${PROD_NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=http://${PROD_SERVER_IP}:${PROD_BACKEND_PORT:-3001}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]

@@ -1,4 +1,4 @@
-FROM node:20-slim AS builder
+FROM --platform=linux/amd64 node:20-slim AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY . .
 RUN pnpm build
 
 # Production image
-FROM node:20-slim AS runner
+FROM --platform=linux/amd64 node:20-slim AS runner
 
 WORKDIR /app
 
@@ -38,10 +38,4 @@ ENV NEXT_TELEMETRY_DISABLED=1
 EXPOSE 3000
 
 # Start the application
-CMD ["pnpm", "start"]
-
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 5173
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["pnpm", "start"] 
