@@ -7,6 +7,9 @@ import { processCSV, type UploadProgress } from "@/lib/actions"
 import { Button } from "@/components/ui/button"
 import { downloadCSV } from "@/lib/utils"
 import { useDropzone } from 'react-dropzone'
+import { Card } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { Input } from "@/components/ui/input"
 
 export type CSVData = Record<string, string | number>
 
@@ -16,7 +19,12 @@ export type FilterCondition = {
   value: number
 }
 
-export const CSVProcessor = () => {
+interface CSVProcessorProps {
+  onProcessingComplete?: () => void;
+  onProcessingStart?: () => void;
+}
+
+export const CSVProcessor = ({ onProcessingComplete, onProcessingStart }: CSVProcessorProps) => {
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<CSVData[]>([])
@@ -28,23 +36,47 @@ export const CSVProcessor = () => {
   const [modifiedData, setModifiedData] = useState<CSVData[]>([])
   const [isModified, setIsModified] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
+  const [url, setUrl] = useState("")
 
-  const handleFileProcessed = async (file: File | string) => {
-    setIsProcessing(true)
-    setError(null)
+  const handleFileProcessed = async (file: File) => {
     try {
-      const result = await processCSV(file, (progress) => {
+      setError(null)
+      setUploadProgress({
+        status: 'uploading',
+        progress: 0,
+        message: 'Starting upload...'
+      })
+      
+      // Notify that processing has started
+      onProcessingStart?.()
+
+      await processCSV(file, (progress) => {
         setUploadProgress(progress)
       })
-      setData(result.data)
-      setColumns(result.columns)
-      setNumericFields(result.numericFields)
-      setModifiedData(result.data)
-    } catch (error) {
-      console.error("Error processing file:", error)
-      setError(error instanceof Error ? error.message : 'Error processing file. Please try again.')
-    } finally {
-      setIsProcessing(false)
+
+      // Notify parent component that processing is complete
+      onProcessingComplete?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while processing the file')
+      setUploadProgress({
+        status: 'error',
+        progress: 0,
+        message: 'Upload failed'
+      })
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleFileProcessed(file)
+    }
+  }
+
+  const handleUrlSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (url) {
+      handleFileProcessed(new File([], url))
     }
   }
 
@@ -130,103 +162,7 @@ export const CSVProcessor = () => {
   })
 
   return (
-    <div className="space-y-8">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
-          <p className="text-sm">{error}</p>
-        </div>
-      )}
-
-      {uploadProgress && (
-        <div className="mb-4">
-          <div className="flex justify-between mb-1">
-            <span className="text-sm font-medium">
-              {uploadProgress.message}
-            </span>
-            <span className="text-sm font-medium">
-              {Math.round(uploadProgress.progress)}%
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className={`h-2.5 rounded-full transition-all duration-300 ${
-                uploadProgress.status === 'error' ? 'bg-red-600' :
-                uploadProgress.status === 'complete' ? 'bg-green-600' :
-                'bg-blue-600'
-              }`}
-              style={{ width: `${uploadProgress.progress}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {!data.length ? (
-        <div 
-          {...getRootProps()} 
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-            ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}
-        >
-          <input {...getInputProps()} />
-          <div className="flex flex-col items-center justify-center gap-2">
-            <svg 
-              className="w-12 h-12 text-gray-400" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-              />
-            </svg>
-            <p className="text-lg">
-              {isDragActive ? 
-                'Drop your CSV file here' : 
-                'Drag and drop your CSV file here or click to browse'
-              }
-            </p>
-            <p className="text-sm text-gray-500">
-              Supports CSV files of any size
-            </p>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Data Preview</h2>
-            <div className="space-x-2">
-              <Button onClick={() => {
-                setData([]);
-                setError(null);
-              }} variant="outline">
-                Upload New File
-              </Button>
-              <Button onClick={handleExport} disabled={modifiedData.length === 0}>
-                Export CSV
-              </Button>
-            </div>
-          </div>
-
-          <DataTable
-            data={modifiedData}
-            columns={columns}
-            numericFields={numericFields}
-            filters={filters}
-            setFilters={setFilters}
-            applyFilters={applyFilters}
-            bulkUpdateField={bulkUpdateField}
-            setBulkUpdateField={setBulkUpdateField}
-            bulkUpdateValue={bulkUpdateValue}
-            setBulkUpdateValue={setBulkUpdateValue}
-            applyBulkUpdate={applyBulkUpdate}
-            isModified={isModified}
-            resetChanges={resetChanges}
-          />
-        </>
-      )}
-    </div>
+    <FileUploader onUploadComplete={onProcessingComplete} />
   )
 }
 

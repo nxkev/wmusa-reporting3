@@ -1,136 +1,136 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useCallback, useState } from 'react'
+import { useDropzone } from 'react-dropzone'
+import { Card } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Upload, Link } from "lucide-react"
+import { processCSV, type UploadProgress } from '@/lib/actions'
 
 interface FileUploaderProps {
-  onFileProcessed: (file: File | string) => void
-  isProcessing: boolean
+  onUploadComplete?: () => void;
 }
 
-export const FileUploader = ({ onFileProcessed, isProcessing }: FileUploaderProps) => {
-  const [file, setFile] = useState<File | null>(null)
-  const [url, setUrl] = useState<string>("")
-  const [dragActive, setDragActive] = useState<boolean>(false)
+export const FileUploader = ({ onUploadComplete }: FileUploaderProps) => {
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0])
+  const handleFileProcessed = async (file: File) => {
+    try {
+      setError(null);
+      setUploadProgress({
+        status: 'uploading',
+        progress: 0,
+        message: 'Starting upload...'
+      });
+
+      await processCSV(file, (progress) => {
+        setUploadProgress(progress);
+        if (progress.status === 'complete') {
+          onUploadComplete?.();
+        }
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while processing the file');
+      setUploadProgress({
+        status: 'error',
+        progress: 0,
+        message: 'Upload failed'
+      });
     }
-  }
+  };
 
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUrl(e.target.value)
-  }
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+    await handleFileProcessed(acceptedFiles[0]);
+  }, []);
 
-  const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true)
-    } else if (e.type === "dragleave") {
-      setDragActive(false)
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0])
-    }
-  }
-
-  const handleFileUpload = () => {
-    if (file) {
-      onFileProcessed(file)
-    }
-  }
-
-  const handleUrlUpload = () => {
-    if (url) {
-      onFileProcessed(url)
-    }
-  }
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'text/csv': ['.csv']
+    },
+    multiple: false
+  });
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Upload CSV File</CardTitle>
-        <CardDescription>Upload a CSV file or provide a URL to a CSV file to process</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="file" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="file">File Upload</TabsTrigger>
-            <TabsTrigger value="url">URL</TabsTrigger>
-          </TabsList>
-          <TabsContent value="file" className="space-y-4">
-            <div
-              className={`border-2 border-dashed rounded-lg p-10 text-center ${
-                dragActive ? "border-primary bg-primary/10" : "border-gray-300"
-              }`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
+    <Card className="p-6">
+      <h2 className="text-2xl font-bold mb-6">Upload CSV File</h2>
+      
+      {uploadProgress && (
+        <div className="mb-6">
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">{uploadProgress.message}</span>
+            <span className="text-sm font-medium">{Math.round(uploadProgress.progress)}%</span>
+          </div>
+          <Progress value={uploadProgress.progress} className="h-3" />
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
+          {error}
+        </div>
+      )}
+
+      <div className="space-y-6">
+        <div
+          {...getRootProps()}
+          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+            ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}
+        >
+          <input {...getInputProps()} />
+          <div className="flex flex-col items-center justify-center gap-2">
+            <svg 
+              className="w-12 h-12 text-gray-400" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
             >
-              <div className="flex flex-col items-center justify-center space-y-4">
-                <Upload className="h-10 w-10 text-gray-400" />
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Drag and drop your CSV file here or click to browse</p>
-                  <p className="text-xs text-gray-500">Supports CSV files of any size</p>
-                </div>
-                <Input id="file-upload" type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
-                <Button variant="outline" onClick={() => document.getElementById("file-upload")?.click()}>
-                  Browse Files
-                </Button>
-              </div>
-            </div>
-            {file && (
-              <div className="flex items-center justify-between p-2 border rounded">
-                <span className="text-sm truncate max-w-[70%]">{file.name}</span>
-                <Button onClick={handleFileUpload} disabled={isProcessing}>
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    "Process File"
-                  )}
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-          <TabsContent value="url" className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Link className="h-4 w-4 text-gray-400" />
-                <Input placeholder="https://example.com/data.csv" value={url} onChange={handleUrlChange} />
-              </div>
-              <Button className="w-full" onClick={handleUrlUpload} disabled={!url || isProcessing}>
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Process URL"
-                )}
-              </Button>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+            <p className="text-lg">
+              {isDragActive ? 
+                'Drop your CSV file here' : 
+                'Drag and drop your CSV file here or click to browse'
+              }
+            </p>
+            <p className="text-sm text-gray-500">
+              Supports CSV files of any size
+            </p>
+          </div>
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              Or
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Upload File</label>
+          <Input
+            type="file"
+            accept=".csv"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFileProcessed(file);
+            }}
+            className="w-full"
+          />
+        </div>
+      </div>
     </Card>
-  )
-}
+  );
+};
 

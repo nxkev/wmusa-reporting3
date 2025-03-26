@@ -11,8 +11,51 @@ export type UploadProgress = {
 type UploadResponse = {
   message: string
   rowCount: number
+  totalRows: number
   columns: string[]
 }
+
+export type StoreMetricsData = {
+  wm_time_window_week: string;
+  all_links_item_description: string;
+  all_links_item_number: string;
+  base_unit_retail_amount: number;
+  brand_id: string;
+  brand_name: string;
+  buyer_name: string;
+  consumer_id: string;
+  country_of_origin: string;
+  omni_category_group_description: string;
+  omni_department_number: string;
+  season_description: string;
+  season_year: string;
+  walmart_upc_number: string;
+  vendor_name: string;
+  vendor_number: string;
+  store_number: string;
+  city_name: string;
+  'all_links_item_number/store_number/city_name': string;
+  catalog_item_id: string;
+  l4w_units_per_str_with_sales_per_week_or_per_day_ty: number;
+  units_per_str_with_sales_per_week_or_per_day_ty: number;
+  l4w_dollar_per_str_with_sales_per_week_or_per_day_ty: number;
+  dollar_per_str_with_sales_per_week_or_per_day_ty: number;
+  instock_percentage_this_year: number;
+  store_in_transit_quantity_this_year: number;
+  store_in_warehouse_quantity_this_year: number;
+  store_on_hand_quantity_this_year: number;
+  store_on_order_quantity_this_year: number;
+  l4w_pos_quantity_this_year: number;
+  pos_quantity_this_year: number;
+  average_weekly_sales: number;
+  pipeline: number;
+  in_store: number;
+  pipeline_iw_it: number;
+  wos_with_instore_pipeline: number | null;
+  units_per_case_pack: number | null;
+  case_packs: null;
+  total_units: null;
+};
 
 export async function processCSV(
   fileOrUrl: File | string,
@@ -68,7 +111,7 @@ export async function processCSV(
             onProgress?.({
               status: 'uploading',
               progress: percentComplete,
-              message: `Uploading: ${Math.round(percentComplete)}%`
+              message: `Uploading file: ${Math.round(percentComplete)}%`
             });
           }
         });
@@ -104,7 +147,7 @@ export async function processCSV(
     onProgress?.({
       status: 'processing',
       progress: 50,
-      message: 'Processing uploaded file...'
+      message: `Processing data: ${uploadResult.rowCount} of ${uploadResult.totalRows} rows (${Math.round((uploadResult.rowCount / uploadResult.totalRows) * 100)}%)`
     });
 
     console.log('Upload successful:', uploadResult);
@@ -182,6 +225,20 @@ export async function processCSV(
       message: error instanceof Error ? error.message : 'An unknown error occurred'
     });
     console.error('Error processing CSV:', error);
+    throw error;
+  }
+}
+
+export async function fetchStoreMetrics(): Promise<StoreMetricsData[]> {
+  try {
+    const response = await fetch('/api/store-metrics');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching store metrics:', error);
     throw error;
   }
 }
